@@ -318,3 +318,25 @@ fn basic_rust_32bit() {
         PossibleSolutions::exactly_two(ReturnValue::Return(2), ReturnValue::Abort)
     );
 }
+
+#[test]
+fn rust_null_slice() {
+    let funcname = "basic_rust::Foo::ez3";
+    init_logging();
+    let proj = get_basic_rust_project();
+    let mut config: Config<backend::DefaultBackend> = Config::default();
+    config.null_pointer_checking = config::NullPointerChecking::None; // In the Tock kernel, we trust that Rust safety mechanisms prevent null pointer dereferences.
+    config.loop_bound = 20; // default is 10, go higher to detect unbounded loops
+    let ret = get_possible_return_values_of_func(
+        funcname,
+        vec![Some(1)],
+        &proj,
+        Config::default(),
+        None,
+        10,
+    );
+    assert_eq!(
+        ret,
+        PossibleSolutions::exactly_two(ReturnValue::Return(1), ReturnValue::Abort)
+    );
+}
