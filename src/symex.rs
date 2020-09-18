@@ -240,7 +240,7 @@ where
                     num_insts,
                 );
                 i
-            },
+            }
             BBInstrIndex::Terminator => num_insts, // skip all the instructions, go right to the terminator
         };
         let mut first_iter = true; // is it the first iteration of the for loop
@@ -299,12 +299,12 @@ where
                 }
             };
             match result {
-                Ok(_) => {}, // no error, we can continue
+                Ok(_) => {} // no error, we can continue
                 Err(Error::Unsat) if self.squash_unsats => {
                     // we can't continue down this path anymore; try another
                     info!("Path is unsat");
                     return self.backtrack_and_continue();
-                },
+                }
                 Err(e) => return Err(e), // propagate any other errors
             };
         }
@@ -392,7 +392,7 @@ where
                                     },
                                 );
                                 continue;
-                            },
+                            }
                             Either::Right(invoke) => {
                                 // catch the thrown value
                                 info!(
@@ -409,15 +409,15 @@ where
                                 self.state.cur_loc = callsite.loc.clone();
                                 return self
                                     .catch_at_exception_label(&bvptr, &invoke.exception_label);
-                            },
+                            }
                         },
                         None => {
                             // no callsite to return to, so we're done; exception was uncaught
                             return Ok(Some(ReturnValue::Throw(bvptr)));
-                        },
+                        }
                     }
                 }
-            },
+            }
             Some(ReturnValue::Abort) => Ok(Some(ReturnValue::Abort)),
             Some(symexresult) => match self.state.pop_callsite() {
                 Some(callsite) => match callsite.instr {
@@ -446,19 +446,19 @@ where
                                     // This path is dead, try backtracking again
                                     return self.backtrack_and_continue();
                                 };
-                            },
-                            ReturnValue::ReturnVoid => {},
+                            }
+                            ReturnValue::ReturnVoid => {}
                             ReturnValue::Throw(_) => {
                                 panic!("This case should have been handled above")
-                            },
+                            }
                             ReturnValue::Abort => {
                                 panic!("This case should have been handled above")
-                            },
+                            }
                         };
                         // Continue execution in caller, with the instruction after the call instruction
                         self.state.cur_loc.inc(); // advance past the call instruction itself before recording the path entry. `saved_loc` must have been a call instruction, so can't be a terminator, so the call to `inc()` is safe.
                         self.symex_from_cur_loc()
-                    },
+                    }
                     Either::Right(invoke) => {
                         // Normal return to an `Invoke` instruction
                         info!("Leaving function {:?}, continuing in caller {:?}{} (finished invoke in bb {}, now in bb {})",
@@ -484,31 +484,31 @@ where
                                     // This path is dead, try backtracking again
                                     return self.backtrack_and_continue();
                                 };
-                            },
-                            ReturnValue::ReturnVoid => {},
+                            }
+                            ReturnValue::ReturnVoid => {}
                             ReturnValue::Throw(_) => {
                                 panic!("This case should have been handled above")
-                            },
+                            }
                             ReturnValue::Abort => {
                                 panic!("This case should have been handled above")
-                            },
+                            }
                         };
                         // Continue execution in caller, at the normal-return label of the `Invoke` instruction
                         self.state
                             .cur_loc
                             .move_to_start_of_bb_by_name(&invoke.return_label);
                         self.symex_from_cur_loc()
-                    },
+                    }
                 },
                 None => {
                     // No callsite to return to, so we're done
                     Ok(Some(symexresult))
-                },
+                }
             },
             None => {
                 // This path is dead, try backtracking again
                 self.backtrack_and_continue()
-            },
+            }
         }
     }
 
@@ -633,7 +633,7 @@ where
                     })?;
                 self.state
                     .record_bv_result(zext, bvop.zext(dest_size - source_size))
-            },
+            }
             Type::VectorType {
                 element_type,
                 num_elements,
@@ -655,19 +655,19 @@ where
                         }
                         self.state.size_in_bits(&out_el_type)
                             .ok_or_else(|| Error::MalformedInstruction("ZExt return type is a vector whose elements are opaque struct type".into()))?
-                    },
+                    }
                     ty => {
                         return Err(Error::MalformedInstruction(format!(
                             "ZExt operand is a vector type, but output is not: it is {:?}",
                             ty
                         )))
-                    },
+                    }
                 };
                 let final_bv = unary_on_vector(&in_vector, *num_elements as u32, |el| {
                     Ok(el.zext(out_el_size - in_el_size))
                 })?;
                 self.state.record_bv_result(zext, final_bv)
-            },
+            }
             ty => Err(Error::MalformedInstruction(format!(
                 "Expected ZExt operand type to be integer or vector of integers; got {:?}",
                 ty
@@ -691,7 +691,7 @@ where
                     })?;
                 self.state
                     .record_bv_result(sext, bvop.sext(dest_size - source_size))
-            },
+            }
             Type::VectorType {
                 element_type,
                 num_elements,
@@ -713,19 +713,19 @@ where
                         }
                         self.state.size_in_bits(&out_el_type)
                             .ok_or_else(|| Error::MalformedInstruction("SExt return type is a vector whose elements are opaque struct type".into()))?
-                    },
+                    }
                     ty => {
                         return Err(Error::MalformedInstruction(format!(
                             "SExt operand is a vector type, but output is not: it is {:?}",
                             ty
                         )))
-                    },
+                    }
                 };
                 let final_bv = unary_on_vector(&in_vector, *num_elements as u32, |el| {
                     Ok(el.sext(out_el_size - in_el_size))
                 })?;
                 self.state.record_bv_result(sext, final_bv)
-            },
+            }
             ty => Err(Error::MalformedInstruction(format!(
                 "Expected SExt operand type to be integer or vector of integers; got {:?}",
                 ty
@@ -748,7 +748,7 @@ where
                     })?;
                 self.state
                     .record_bv_result(trunc, bvop.slice(dest_size - 1, 0))
-            },
+            }
             Type::VectorType { num_elements, .. } => {
                 let in_vector = self.state.operand_to_bv(&trunc.operand)?;
                 let dest_el_size = match self.state.type_of(trunc).as_ref() {
@@ -761,19 +761,19 @@ where
                         }
                         self.state.size_in_bits(&out_el_type)
                             .ok_or_else(|| Error::MalformedInstruction("Trunc return type is a vector whose elements are opaque struct type".into()))?
-                    },
+                    }
                     ty => {
                         return Err(Error::MalformedInstruction(format!(
                             "Trunc operand is a vector type, but output is not: it is {:?}",
                             ty
                         )))
-                    },
+                    }
                 };
                 let final_bv = unary_on_vector(&in_vector, *num_elements as u32, |el| {
                     Ok(el.slice(dest_el_size - 1, 0))
                 })?;
                 self.state.record_bv_result(trunc, final_bv)
-            },
+            }
             ty => Err(Error::MalformedInstruction(format!(
                 "Expected Trunc operand type to be integer or vector of integers; got {:?}",
                 ty
@@ -825,7 +825,7 @@ where
                     bvbase.get_width(),
                 )?;
                 self.state.record_bv_result(gep, bvbase.add(&offset))
-            },
+            }
             Type::VectorType { .. } => Err(Error::UnsupportedInstruction(
                 "GEP calculating a vector of pointers".to_owned(),
             )),
@@ -852,16 +852,16 @@ where
                         "get_offset on a struct type not found in the current module (name {:?})",
                         name
                     )));
-                },
+                }
                 Some(NamedStructDef::Opaque) => {
                     return Err(Error::MalformedInstruction(format!(
                         "get_offset on an opaque struct type (name {:?})",
                         name
                     )));
-                },
+                }
                 Some(NamedStructDef::Defined(ty)) => {
                     return Self::get_offset_recursive(state, indices, &ty, result_bits);
-                },
+                }
             }
         }
         match indices.next() {
@@ -904,7 +904,10 @@ where
         debug!("Symexing alloca {:?}", alloca);
         match &alloca.num_elements {
             Operand::ConstantOperand(cref) => match cref.as_ref() {
-                Constant::Int { value: num_elements, .. } => {
+                Constant::Int {
+                    value: num_elements,
+                    ..
+                } => {
                     let allocation_size_bits = {
                         let element_size_bits = self
                             .state
@@ -922,7 +925,7 @@ where
                     };
                     let allocated = self.state.allocate(allocation_size_bits);
                     self.state.record_bv_result(alloca, allocated)
-                },
+                }
                 c => Err(Error::UnsupportedInstruction(format!(
                     "Alloca with num_elements not a constant int: {:?}",
                     c
@@ -960,13 +963,13 @@ where
                                     vector.slice((index + 1) * el_size - 1, index * el_size),
                                 )
                             }
-                        },
+                        }
                         ty => Err(Error::MalformedInstruction(format!(
                             "Expected ExtractElement vector to be a vector type, got {:?}",
                             ty
                         ))),
                     }
-                },
+                }
                 c => Err(Error::UnsupportedInstruction(format!(
                     "ExtractElement with index not a constant int: {:?}",
                     c
@@ -984,49 +987,51 @@ where
         let vector = self.state.operand_to_bv(&ie.vector)?;
         let element = self.state.operand_to_bv(&ie.element)?;
         match &ie.index {
-            Operand::ConstantOperand(cref) => match cref.as_ref() {
-                Constant::Int { value: index, .. } => {
-                    let index = *index as u32;
-                    match self.state.type_of(&ie.vector).as_ref() {
-                        Type::VectorType {
-                            element_type,
-                            num_elements,
-                        } => {
-                            if index >= *num_elements as u32 {
-                                Err(Error::MalformedInstruction(format!(
+            Operand::ConstantOperand(cref) => {
+                match cref.as_ref() {
+                    Constant::Int { value: index, .. } => {
+                        let index = *index as u32;
+                        match self.state.type_of(&ie.vector).as_ref() {
+                            Type::VectorType {
+                                element_type,
+                                num_elements,
+                            } => {
+                                if index >= *num_elements as u32 {
+                                    Err(Error::MalformedInstruction(format!(
                                     "InsertElement index out of range: index {} with {} elements",
                                     index, num_elements
                                 )))
-                            } else {
-                                let vec_size = vector.get_width();
-                                let el_size = self.state.size_in_bits(&element_type)
+                                } else {
+                                    let vec_size = vector.get_width();
+                                    let el_size = self.state.size_in_bits(&element_type)
                                     .ok_or_else(|| Error::MalformedInstruction("InsertElement element is an opaque named struct type".into()))?;
-                                assert_eq!(vec_size, el_size * *num_elements as u32);
-                                let insertion_bitindex_low = index * el_size; // lowest bit number in the vector which will be overwritten
-                                let insertion_bitindex_high = (index + 1) * el_size - 1; // highest bit number in the vector which will be overwritten
+                                    assert_eq!(vec_size, el_size * *num_elements as u32);
+                                    let insertion_bitindex_low = index * el_size; // lowest bit number in the vector which will be overwritten
+                                    let insertion_bitindex_high = (index + 1) * el_size - 1; // highest bit number in the vector which will be overwritten
 
-                                let with_insertion = Self::overwrite_bv_segment(
-                                    &mut self.state,
-                                    &vector,
-                                    element,
-                                    insertion_bitindex_low,
-                                    insertion_bitindex_high,
-                                );
+                                    let with_insertion = Self::overwrite_bv_segment(
+                                        &mut self.state,
+                                        &vector,
+                                        element,
+                                        insertion_bitindex_low,
+                                        insertion_bitindex_high,
+                                    );
 
-                                self.state.record_bv_result(ie, with_insertion)
+                                    self.state.record_bv_result(ie, with_insertion)
+                                }
                             }
-                        },
-                        ty => Err(Error::MalformedInstruction(format!(
-                            "Expected InsertElement vector to be a vector type, got {:?}",
-                            ty
-                        ))),
+                            ty => Err(Error::MalformedInstruction(format!(
+                                "Expected InsertElement vector to be a vector type, got {:?}",
+                                ty
+                            ))),
+                        }
                     }
-                },
-                c => Err(Error::UnsupportedInstruction(format!(
-                    "InsertElement with index not a constant int: {:?}",
-                    c
-                ))),
-            },
+                    c => Err(Error::UnsupportedInstruction(format!(
+                        "InsertElement with index not a constant int: {:?}",
+                        c
+                    ))),
+                }
+            }
             op => Err(Error::UnsupportedInstruction(format!(
                 "InsertElement with index not a constant int: {:?}",
                 op
@@ -1090,7 +1095,7 @@ where
                         Error::MalformedInstruction("ShuffleVector mask had 0 elements".to_owned())
                     })?;
                 self.state.record_bv_result(sv, final_bv)
-            },
+            }
             ty => Err(Error::MalformedInstruction(format!(
                 "Expected ShuffleVector operands to be vectors, got {:?}",
                 ty
@@ -1147,16 +1152,16 @@ where
             match self.project.get_named_struct_def(name) {
                 Err(e) => {
                     return Err(Error::OtherError(format!("error during get_offset: {}", e)));
-                },
+                }
                 Ok((NamedStructDef::Opaque, _)) => {
                     return Err(Error::MalformedInstruction(format!(
                         "get_offset on an opaque struct type ({:?})",
                         name
                     )));
-                },
+                }
                 Ok((NamedStructDef::Defined(ty), _)) => {
                     return self.get_offset_recursive_const_indices(indices, &ty);
-                },
+                }
             }
         }
         match indices.next() {
@@ -1175,10 +1180,10 @@ where
                         self.state.get_offset_constant_index(base_type, index)?;
                     self.get_offset_recursive_const_indices(indices, &nested_ty)
                         .map(|(val, size)| (val + offset, size))
-                },
+                }
                 Type::NamedStructType { .. } => {
                     panic!("NamedStructType case should have been handled above")
-                },
+                }
                 _ => panic!(
                     "get_offset_recursive_const_indices with base type {:?}",
                     base_type
@@ -1265,12 +1270,12 @@ where
                         // can't quite use `state.record_bv_result(call, retval)?` because Call is not HasResult
                         self.state
                             .assign_bv_to_name(call.dest.as_ref().unwrap().clone(), retval)?;
-                    },
-                    ReturnValue::ReturnVoid => {},
+                    }
+                    ReturnValue::ReturnVoid => {}
                     ReturnValue::Throw(bvptr) => {
                         debug!("Hook threw an exception, but caller isn't inside a try block; rethrowing upwards");
                         return Ok(Some(ReturnValue::Throw(bvptr)));
-                    },
+                    }
                     ReturnValue::Abort => return Ok(Some(ReturnValue::Abort)),
                 }
                 let log_level = if quiet {
@@ -1291,7 +1296,7 @@ where
                     }
                 );
                 Ok(None)
-            },
+            }
             ResolvedFunction::NoHookActive { called_funcname } => {
                 let at_max_callstack_depth = match self.state.config.max_callstack_depth {
                     Some(max_depth) => self.state.current_callstack_depth() >= max_depth,
@@ -1300,21 +1305,24 @@ where
                 if at_max_callstack_depth {
                     info!("Ignoring a call to function {:?} due to max_callstack_len setting (current callstack depth is {}, max is {})", called_funcname, self.state.current_callstack_depth(), self.state.config.max_callstack_depth.unwrap());
                     match self.state.type_of(call).as_ref() {
-                        Type::VoidType => {},
+                        Type::VoidType => {}
                         ty => {
                             let width = self.state.size_in_bits(&ty).ok_or_else(|| {
                                 Error::MalformedInstruction(
                                     "Call return type is an opaque struct type".into(),
                                 )
                             })?;
-                            assert_ne!(width, 0, "Function return type has size 0 bits but isn't void type"); // void type was handled above
+                            assert_ne!(
+                                width, 0,
+                                "Function return type has size 0 bits but isn't void type"
+                            ); // void type was handled above
                             let bv = self.state.new_bv_with_name(
                                 Name::from(format!("{}_retval", called_funcname)),
                                 width,
                             )?;
                             self.state
                                 .assign_bv_to_name(call.dest.as_ref().unwrap().clone(), bv)?;
-                        },
+                        }
                     }
                     Ok(None)
                 } else if let Some((callee, callee_mod)) =
@@ -1373,12 +1381,12 @@ where
                                         call.dest.as_ref().unwrap().clone(),
                                         bv,
                                     )?;
-                                },
+                                }
                                 ReturnValue::ReturnVoid => assert_eq!(call.dest, None),
                                 ReturnValue::Throw(bvptr) => {
                                     debug!("Callee threw an exception, but caller isn't inside a try block; rethrowing upwards");
                                     return Ok(Some(ReturnValue::Throw(bvptr)));
-                                },
+                                }
                                 ReturnValue::Abort => return Ok(Some(ReturnValue::Abort)),
                             };
                             debug!("Completed ordinary return to caller");
@@ -1417,19 +1425,19 @@ where
                                         call.dest.as_ref().unwrap().clone(),
                                         retval,
                                     )?;
-                                },
-                                ReturnValue::ReturnVoid => {},
+                                }
+                                ReturnValue::ReturnVoid => {}
                                 ReturnValue::Throw(bvptr) => {
                                     debug!("Hook threw an exception, but caller isn't inside a try block; rethrowing upwards");
                                     return Ok(Some(ReturnValue::Throw(bvptr)));
-                                },
+                                }
                                 ReturnValue::Abort => return Ok(Some(ReturnValue::Abort)),
                             }
                             Ok(None)
-                        },
+                        }
                     }
                 }
-            },
+            }
         }
     }
 
@@ -1800,7 +1808,7 @@ where
                             called_funcname: funcname,
                         })
                     }
-                },
+                }
             },
             Either::Right(hook) => Ok(ResolvedFunction::HookActive {
                 hook,
@@ -1830,11 +1838,7 @@ where
             log::Level::Info
         };
         log::log!(log_level, "Processing hook for {}", hooked_funcname);
-<<<<<<< HEAD
-        match hook.call_hook(&mut self.state, call)? {
-=======
-        let ret = match hook.call_hook(&self.project, &mut self.state, call)? {
->>>>>>> first working version of optimization that enforces that instances of dynamically dispatched trait methods do not call themselves. only very basic version tested; needs more testing
+        let ret = match hook.call_hook(&mut self.state, call)? {
             ReturnValue::ReturnVoid => {
                 if self.state.type_of(call).as_ref() == &Type::VoidType {
                     Ok(ReturnValue::ReturnVoid)
@@ -1844,7 +1848,7 @@ where
                         hooked_funcname
                     )))
                 }
-            },
+            }
             ReturnValue::Return(retval) => {
                 let ret_type = self.state.type_of(call);
                 if ret_type.as_ref() == &Type::VoidType {
@@ -1864,7 +1868,7 @@ where
                         Ok(ReturnValue::Return(retval))
                     }
                 }
-            },
+            }
             ReturnValue::Throw(bvptr) => Ok(ReturnValue::Throw(bvptr)), // throwing is always OK and doesn't need to be checked against function type
             ReturnValue::Abort => Ok(ReturnValue::Abort), // aborting is always OK and doesn't need to be checked against function type
         };
@@ -1873,9 +1877,7 @@ where
         // check if the called hook was a trait object method call with detected recursion.
         // if so, remove it from
         // the global list of trait object method calls being executed.
-        let mut fake_recursion_store = crate::dyn_dispatch::FAKE_RECURSION_STORE
-            .try_lock()
-            .unwrap();
+        let mut fake_recursion_store = self.project.fake_recursion_store.try_lock().unwrap();
         let removed = fake_recursion_store.remove(&hooked_funcname.to_string());
         if removed {
             println!("Removed {:?} from fake recursion store.", hooked_funcname);
@@ -2033,8 +2035,8 @@ where
                     ReturnValue::Return(retval) => {
                         self.state
                             .assign_bv_to_name(invoke.result.clone(), retval)?;
-                    },
-                    ReturnValue::ReturnVoid => {},
+                    }
+                    ReturnValue::ReturnVoid => {}
                     ReturnValue::Throw(bvptr) => {
                         info!("Hook for {} threw an exception, which we are catching at bb {} in function {:?}{}",
                             pretty_hookedthing, invoke.exception_label, self.state.cur_loc.func.name,
@@ -2045,7 +2047,7 @@ where
                             }
                         );
                         return self.catch_at_exception_label(&bvptr, &invoke.exception_label);
-                    },
+                    }
                     ReturnValue::Abort => return Ok(Some(ReturnValue::Abort)),
                 };
                 let old_bb_name = &self.state.cur_loc.bb.name;
@@ -2070,7 +2072,7 @@ where
                     self.state.cur_loc.bb.name,
                 );
                 self.symex_from_cur_loc_through_end_of_function()
-            },
+            }
             ResolvedFunction::NoHookActive { called_funcname } => {
                 let at_max_callstack_depth = match self.state.config.max_callstack_depth {
                     Some(max_depth) => self.state.current_callstack_depth() >= max_depth,
@@ -2079,20 +2081,23 @@ where
                 if at_max_callstack_depth {
                     info!("Ignoring a call to function {:?} due to max_callstack_len setting (current callstack depth is {}, max is {})", called_funcname, self.state.current_callstack_depth(), self.state.config.max_callstack_depth.unwrap());
                     match self.state.type_of(invoke).as_ref() {
-                        Type::VoidType => {},
+                        Type::VoidType => {}
                         ty => {
                             let width = self.state.size_in_bits(&ty).ok_or_else(|| {
                                 Error::MalformedInstruction(
                                     "Invoke return type is an opaque struct type".into(),
                                 )
                             })?;
-                            assert_ne!(width, 0, "Invoke return type has size 0 bits but isn't void type"); // void type was handled above
+                            assert_ne!(
+                                width, 0,
+                                "Invoke return type has size 0 bits but isn't void type"
+                            ); // void type was handled above
                             let bv = self.state.new_bv_with_name(
                                 Name::from(format!("{}_retval", called_funcname)),
                                 width,
                             )?;
                             self.state.assign_bv_to_name(invoke.result.clone(), bv)?;
-                        },
+                        }
                     }
                     self.state
                         .cur_loc
@@ -2150,8 +2155,8 @@ where
                                 ReturnValue::Return(retval) => {
                                     self.state
                                         .assign_bv_to_name(invoke.result.clone(), retval)?;
-                                },
-                                ReturnValue::ReturnVoid => {},
+                                }
+                                ReturnValue::ReturnVoid => {}
                                 ReturnValue::Throw(bvptr) => {
                                     info!("Caller {:?} catching an exception thrown by callee {:?}: execution continuing at bb {} in caller {:?}{}",
                                         self.state.cur_loc.func.name, called_funcname, self.state.cur_loc.bb.name, self.state.cur_loc.func.name,
@@ -2163,7 +2168,7 @@ where
                                     );
                                     return self
                                         .catch_at_exception_label(&bvptr, &invoke.exception_label);
-                                },
+                                }
                                 ReturnValue::Abort => return Ok(Some(ReturnValue::Abort)),
                             }
                             // Returned normally, so continue at the `return_label`
@@ -2203,8 +2208,8 @@ where
                                 ReturnValue::Return(retval) => {
                                     self.state
                                         .assign_bv_to_name(invoke.result.clone(), retval)?;
-                                },
-                                ReturnValue::ReturnVoid => {},
+                                }
+                                ReturnValue::ReturnVoid => {}
                                 ReturnValue::Throw(bvptr) => {
                                     info!("Hook for {} threw an exception, which we are catching at bb {} in function {:?}{}",
                                         pretty_funcname, invoke.exception_label, self.state.cur_loc.func.name,
@@ -2216,14 +2221,14 @@ where
                                     );
                                     return self
                                         .catch_at_exception_label(&bvptr, &invoke.exception_label);
-                                },
+                                }
                                 ReturnValue::Abort => return Ok(Some(ReturnValue::Abort)),
                             }
                             Ok(None)
-                        },
+                        }
                     }
                 }
-            },
+            }
         }
     }
 
@@ -2307,12 +2312,12 @@ where
                         // move on to the next instruction in our for loop
                         continue;
                     }
-                },
+                }
                 Err(Error::Unsat) | Err(Error::LoopBoundExceeded(_)) => {
                     // we can't continue down this path anymore
                     info!("Path is either unsat or exceeds the loop bound");
                     return self.backtrack_and_continue();
-                },
+                }
                 Err(e) => return Err(e), // propagate any other errors
             }
         }
@@ -2352,13 +2357,13 @@ where
                     Type::IntegerType { bits: 32 } => {},
                     ty => return Err(Error::MalformedInstruction(format!("Expected landingpad result type to be a struct with second element an i32, got second element {:?}", ty))),
                 }
-            },
+            }
             _ => {
                 return Err(Error::MalformedInstruction(format!(
                     "Expected landingpad result type to be a struct, got {:?}",
                     result_ty
                 )))
-            },
+            }
         }
         // Partly due to current restrictions in `llvm-ir` (not enough info
         // available on landingpad clauses - see `llvm-ir` docs), for now we
@@ -2422,7 +2427,7 @@ where
                     self.state
                         .record_bv_result(select, bvcond.cond_bv(&bvtrueval, &bvfalseval))
                 }
-            },
+            }
             Type::VectorType {
                 element_type,
                 num_elements,
@@ -2443,7 +2448,7 @@ where
                 let condvec = self.state.operand_to_bv(&select.condition)?;
                 let truevec = self.state.operand_to_bv(&select.true_value)?;
                 let falsevec = self.state.operand_to_bv(&select.false_value)?;
-                let final_bv = (0 .. *num_elements as u32)
+                let final_bv = (0..*num_elements as u32)
                     .map(|idx| {
                         let bit = condvec.slice(idx, idx);
                         bit.cond_bv(
@@ -2456,7 +2461,7 @@ where
                         Error::MalformedInstruction("Select with vectors of 0 elements".to_owned())
                     })?;
                 self.state.record_bv_result(select, final_bv)
-            },
+            }
             ty => Err(Error::MalformedInstruction(format!(
                 "Expected select condition to be i1 or vector of i1, but got {:?}",
                 ty
@@ -2486,13 +2491,13 @@ where
                 if element_types[1].as_ref() != &(Type::IntegerType { bits: 1 }) {
                     return Err(Error::MalformedInstruction(format!("Expected cmpxchg result type to be a struct with second element an i1; got second element {:?}", element_types[1])));
                 }
-            },
+            }
             _ => {
                 return Err(Error::MalformedInstruction(format!(
                     "Expected cmpxchg result type to be a struct, got {:?}",
                     result_ty
                 )))
-            },
+            }
         }
 
         let addr = self.state.operand_to_bv(&cmpxchg.address)?;
@@ -2537,7 +2542,7 @@ where
                 return Err(Error::UnsupportedInstruction(
                     "Floating-point operation in an AtomicRMW".into(),
                 ))
-            },
+            }
         };
         self.state.write(&addr, modified_val)?;
         self.state.record_bv_result(armw, read_val)
@@ -2562,7 +2567,7 @@ pub(crate) fn unary_on_vector<F: FnMut(&V) -> Result<V>, V: BV>(
     assert_eq!(in_vector_size % num_elements, 0);
     let in_el_size = in_vector_size / num_elements;
     let in_scalars =
-        (0 .. num_elements).map(|i| in_vector.slice((i + 1) * in_el_size - 1, i * in_el_size));
+        (0..num_elements).map(|i| in_vector.slice((i + 1) * in_el_size - 1, i * in_el_size));
     let out_scalars = in_scalars.map(|s| op(&s)).collect::<Result<Vec<_>>>()?;
     out_scalars
         .into_iter()
@@ -2593,9 +2598,9 @@ where
     assert_eq!(in_vector_size % num_elements, 0);
     let in_el_size = in_vector_size / num_elements;
     let in_scalars_0 =
-        (0 .. num_elements).map(|i| in_vector_0.slice((i + 1) * in_el_size - 1, i * in_el_size));
+        (0..num_elements).map(|i| in_vector_0.slice((i + 1) * in_el_size - 1, i * in_el_size));
     let in_scalars_1 =
-        (0 .. num_elements).map(|i| in_vector_1.slice((i + 1) * in_el_size - 1, i * in_el_size));
+        (0..num_elements).map(|i| in_vector_1.slice((i + 1) * in_el_size - 1, i * in_el_size));
     let out_scalars = in_scalars_0
         .zip_eq(in_scalars_1)
         .map(|(s0, s1)| op(&s0, &s1));
@@ -2830,13 +2835,13 @@ mod tests {
                         // for the purposes of the PathIterator for these tests,
                         // we silently ignore paths which exceeded the loop bound
                         continue;
-                    },
+                    }
                     res => {
                         return res.map(|res| match res {
                             Err(e) => {
                                 // format the error nicely and propagate it
                                 Err(self.em.state().full_error_message_with_context(e))
-                            },
+                            }
                             Ok(_) => Ok(Path(
                                 self.em
                                     .state()
@@ -2847,7 +2852,7 @@ mod tests {
                             )
                             .strip_source_locs()),
                         });
-                    },
+                    }
                 }
             }
         }

@@ -6,27 +6,62 @@ use llvm_ir::{Function, Module};
 use log::{info, warn};
 use rustc_demangle::demangle;
 use std::convert::TryInto;
+use std::collections::{HashMap, HashSet};
 use std::fs::DirEntry;
 use std::io;
 use std::path::Path;
+use std::sync::Mutex;
 
 /// A `Project` is a collection of LLVM code to be explored,
 /// consisting of one or more LLVM modules.
-#[derive(Clone)]
 pub struct Project {
     modules: Vec<Module>,
     pointer_size_bits: u32,
+
+    /// Used for storing a mapping from trait/method names to
+    /// an already determined longest implementation of that trait method.
+    /// This is purely an optimization to avoid repeated lookups.
+    pub(crate) trait_obj_map: Mutex<HashMap<(String, String), String>>,
+
+    /// Used to track the trait currently under analysis, to detect
+    /// the scenario (common in virtualizers in Tock) where the implementation of
+    /// a trait method makes the same method call on a trait object of the same type,
+    /// which would lead to an endless loop. By asserting that virtualizers in Tock never
+    /// call themselves, we circumvent this problem. The circumvention requires tracking the
+    /// trait under analysis whenever there is a trait with multiple implementations. Anytime
+    /// a trait method is analyzed, check if we are already currently analyzing that trait --
+    /// if we are, we have detected this problematic scenario, and do not retrace the method
+    /// currently under analysis. This approach is correct except in the case of recursive
+    /// calls to trait object methods where the trait object method calls an instance of
+    /// the same concrete function at runtime.
+    pub(crate) trait_under_analysis: Mutex<HashSet<String>>,
+
+    /// Within a given trait method that we are finding the longest path instance of, stores all
+    /// concrete functions which symbolically could do the recursion we disallow in Tock
+    pub(crate) detected_recursion: Mutex<HashMap<(String, String), HashSet<String>>>,
+
+    /// When a concrete instance of a trait method that calls itself is returned, store it in this map
+    /// until we are finished symbolically executing this concrete instance
+    pub(crate) fake_recursion_store: Mutex<HashSet<String>>,
 }
 
 impl Project {
+    fn new(modules: Vec<Module>, pointer_size_bits: u32) -> Self {
+        Self {
+            pointer_size_bits,
+            modules,
+            trait_obj_map: Mutex::new(HashMap::new()),
+            trait_under_analysis: Mutex::new(HashSet::new()),
+            detected_recursion: Mutex::new(HashMap::new()),
+            fake_recursion_store: Mutex::new(HashSet::new()),
+        }
+    }
     /// Construct a new `Project` from a path to an LLVM bitcode file
     pub fn from_bc_path(path: impl AsRef<Path>) -> Result<Self, String> {
         info!("Parsing bitcode in file {}", path.as_ref().display());
         let module = Module::from_bc_path(path)?;
-        Ok(Self {
-            pointer_size_bits: get_ptr_size(&module),
-            modules: vec![module],
-        })
+        let pointer_size_bits = get_ptr_size(&module);
+        Ok(Self::new(vec![module], pointer_size_bits))
     }
 
     /// Construct a new `Project` from multiple LLVM bitcode files
@@ -55,10 +90,7 @@ impl Project {
             ptr_sizes.all(|size| size == pointer_size_bits),
             "Project::from_bc_paths: modules have conflicting pointer sizes"
         );
-        Ok(Self {
-            modules,
-            pointer_size_bits,
-        })
+        Ok(Self::new(modules, pointer_size_bits))
     }
 
     /// Construct a new `Project` from a path to a directory containing
@@ -69,10 +101,7 @@ impl Project {
     pub fn from_bc_dir(path: impl AsRef<Path>, extn: &str) -> Result<Self, io::Error> {
         info!("Parsing bitcode from directory {}", path.as_ref().display());
         let (modules, pointer_size_bits) = Self::modules_from_bc_dir(path, extn, |_| false)?;
-        Ok(Self {
-            modules,
-            pointer_size_bits,
-        })
+        Ok(Self::new(modules, pointer_size_bits))
     }
 
     /// Construct a new `Project` from a path to a directory containing LLVM
@@ -91,10 +120,7 @@ impl Project {
             path.as_ref().display()
         );
         let (modules, pointer_size_bits) = Self::modules_from_bc_dir(path, extn, exclude)?;
-        Ok(Self {
-            modules,
-            pointer_size_bits,
-        })
+        Ok(Self::new(modules, pointer_size_bits))
     }
 
     /// Add the code in the given LLVM bitcode file to the `Project`
@@ -297,11 +323,14 @@ impl Project {
             if let Some(def) = module.types.named_struct_def(name) {
                 match (retval, def) {
                     (None, def) => retval = Some((def, module)), // first definition we've found: this is the new candidate to return
-                    (Some(_), NamedStructDef::Opaque) => {}, // this is an opaque definition, and we previously found some other definition (opaque or not); do nothing
+                    (Some(_), NamedStructDef::Opaque) => {} // this is an opaque definition, and we previously found some other definition (opaque or not); do nothing
                     (Some((NamedStructDef::Opaque, _)), def @ NamedStructDef::Defined(_)) => {
                         retval = Some((def, module)) // found an actual definition, replace the previous opaque definition
-                    },
-                    (Some((NamedStructDef::Defined(ty1), retmod)), NamedStructDef::Defined(ty2)) => {
+                    }
+                    (
+                        Some((NamedStructDef::Defined(ty1), retmod)),
+                        NamedStructDef::Defined(ty2),
+                    ) => {
                         // duplicate non-opaque definitions: ensure they completely agree
                         if ty1 != ty2 {
                             // if they don't agree, we merely warn rather than panicking.
@@ -452,12 +481,12 @@ fn get_ptr_size(module: &Module) -> u32 {
         let colon_idx = spec
             .find(':')
             .expect("datalayout 'p' specification has no colon");
-        let addr_space_num = spec[1 .. colon_idx].parse::<u32>().unwrap_or(0); // if not specified, the address space defaults to 0
+        let addr_space_num = spec[1..colon_idx].parse::<u32>().unwrap_or(0); // if not specified, the address space defaults to 0
         if addr_space_num != 0 {
             // we are only looking for a specification for the default address space
             continue;
         }
-        return spec[colon_idx + 1 .. colon_idx + 3]
+        return spec[colon_idx + 1..colon_idx + 3]
             .parse::<u32>()
             .expect("Failed to parse pointer size");
     }
