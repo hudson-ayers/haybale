@@ -1460,11 +1460,11 @@ where
             .take(location.module.name.rfind('/').unwrap())
             .collect();
         println!("mir_path_str_base: {:?}", mir_path_str_base);
-        let demangled = rustc_demangle::try_demangle(&location.func.name)
-            .unwrap()
-            .to_string();
-        let colon_idx = demangled.find(":").unwrap();
-        let crate_name = demangled[..colon_idx].to_string();
+        //let demangled = rustc_demangle::try_demangle(&location.func.name)
+        //    .unwrap()
+        //    .to_string();
+        //let colon_idx = demangled.find(":").unwrap();
+        //let crate_name = demangled[..colon_idx].to_string();
         let glob_pattern = "/**/*.mir";
         let paths = glob(&[&mir_path_str_base, glob_pattern].concat())
             .unwrap()
