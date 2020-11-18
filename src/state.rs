@@ -2014,6 +2014,39 @@ where
             })
             .collect()
     }
+    
+    /// returns a `String` containing a formatted view of the full path which led
+    /// to this point, in terms of LLVM IR instructions. If the Path includes any
+    /// hooked functions, the instructions which might be contained within those
+    /// functions are not included.
+    pub fn pretty_path_llvm_instructions(&self) -> String {
+        let mut path_str = String::new();
+        for path_entry in self.get_path() {
+            let location = &path_entry.0;
+            match location.instr {
+                BBInstrIndex::Instr(idx) => {
+                    let mut broke_early = false;
+                    for instr in location.bb.instrs.iter().skip(idx) {
+                        path_str.push_str(&format!("{}\n", instr));
+                        match instr {
+                            llvm_ir::instruction::Instruction::Call(_) => {
+                                broke_early = true;
+                                break; // we will print the remaining instructions once we return from
+                                       // the call!
+                            },
+                            _ => {},
+                        }
+                    }
+                    // add terminator, but only if we did not leave bb early bc of function call.
+                    if !broke_early {
+                        path_str.push_str(&format!("{:?}\n", location.bb.term));
+                    }
+                },
+                BBInstrIndex::Terminator => path_str.push_str(&format!("{:?}\n", location.bb.term)),
+            }
+        }
+        path_str
+    }
 
     /// returns a `String` containing a formatted view of the full path which led
     /// to this point, in terms of LLVM locations
